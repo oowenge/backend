@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Sistema de Consulta de Dados</title>
+    <title>数据查询系统</title>
     <style>
         /* 基础重置与背景 */
         body { 
@@ -124,30 +124,30 @@
 
 <div class="mobile-container">
     <div class="logo-container">
-        <img src="https://backend-42w.pages.dev/logo/p80.png" alt="Logotipo da Marca" id="brandLogo">
+        <img src="https://backend-42w.pages.dev/logo/p80.png" alt="品牌Logo" id="brandLogo">
     </div>
 
-    <h2>Consulta de Dados</h2>
+    <h2>内部数据查询</h2>
 
     <div class="form-group">
-        <label>Data da Consulta (Obrigatório)</label>
+        <label>查询日期 (必选)</label>
         <input type="date" id="queryDate">
     </div>
 
     <div class="form-group">
-        <label>Selecione o Método de Busca</label>
+        <label>选择查询方式</label>
         <select id="queryType">
-            <option value="channel">Buscar por Código do Canal</option>
-            <option value="id">Buscar por ID da Conta</option>
+            <option value="channel">按 渠道号 查询</option>
+            <option value="id">按 账户 ID 查询</option>
         </select>
     </div>
 
     <div class="form-group">
-        <label>Insira o Valor</label>
-        <input type="text" id="queryValue" placeholder="Digite o Código do Canal ou ID">
+        <label>输入查询值</label>
+        <input type="text" id="queryValue" placeholder="请输入渠道号或ID">
     </div>
 
-    <button onclick="fetchAndSearch()">CONSULTAR AGORA</button>
+    <button onclick="fetchAndSearch()">立 即 查 询</button>
 
     <div id="resultBox"></div>
 </div>
@@ -161,32 +161,36 @@
         const queryValue = document.getElementById('queryValue').value.trim();
         const resBox = document.getElementById('resultBox');
 
-        if (!inputDate) { alert("Por favor, selecione a data da consulta!"); return; }
-        if (!queryValue) { alert("Por favor, insira o valor da busca!"); return; }
+        if (!inputDate) { alert("请先选择查询日期！"); return; }
+        if (!queryValue) { alert("请输入查询内容！"); return; }
 
         resBox.style.display = 'block';
-        resBox.innerHTML = '<div class="loading-msg">Consultando dados, por favor aguarde...</div>';
+        resBox.innerHTML = '<div class="loading-msg">正在努力查询中，请稍候...</div>';
 
         try {
             const response = await fetch(atob(_dbUrl));
             const csvText = await response.text();
             
+            // 【升级点1】使用强大的正则解析：即使充值金额里写了 "1,000" 也不会把表格切乱
             const rows = csvText.split('\n').map(row => {
                 return row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(cell => cell.replace(/^"|"$/g, '').trim());
             });
             
             let matchData = null;
 
+            // 遍历每一行数据
             for (let i = 1; i < rows.length; i++) {
                 const row = rows[i];
-                if (row.length < 7) continue; 
+                if (row.length < 7) continue; // 如果是空行则跳过
 
+                // 【升级点2】超级日期容错：不管表格里填 2024/5/20 还是 2024-5-20，都强制转换成 2024-05-20 来对比
                 let sheetDate = row[1].replace(/\//g, '-'); 
                 let dateParts = sheetDate.split('-');
                 if(dateParts.length === 3) {
                     sheetDate = `${dateParts[0]}-${dateParts[1].padStart(2, '0')}-${dateParts[2].padStart(2, '0')}`;
                 }
 
+                // 核心匹配逻辑：日期必须对上，然后再对渠道号或ID
                 if (sheetDate === inputDate) {
                     if (queryType === 'channel' && row[0] === queryValue) {
                         matchData = row; break;
@@ -198,21 +202,21 @@
 
             if (matchData) {
                 resBox.innerHTML = `
-                    <div class="success-title">✓ Consulta Concluída</div>
-                    <div class="result-item"><span class="result-label">Código do Canal</span><span class="result-value">${matchData[0]}</span></div>
-                    <div class="result-item"><span class="result-label">Data</span><span class="result-value">${matchData[1]}</span></div>
-                    <div class="result-item"><span class="result-label">ID da Conta</span><span class="result-value">${matchData[2]}</span></div>
-                    <div class="result-item"><span class="result-label">Cadastros</span><span class="result-value">${matchData[3]}</span></div>
-                    <div class="result-item"><span class="result-label">Primeiros Depósitos</span><span class="result-value">${matchData[4]}</span></div>
-                    <div class="result-item"><span class="result-label">Valor de Depósito</span><span class="result-value" style="color:#eab308;">R$ ${matchData[5]}</span></div>
-                    <div class="result-item"><span class="result-label">Valor de Saque</span><span class="result-value" style="color:#ef4444;">R$ ${matchData[6]}</span></div>
+                    <div class="success-title">✓ 查询成功</div>
+                    <div class="result-item"><span class="result-label">渠道号</span><span class="result-value">${matchData[0]}</span></div>
+                    <div class="result-item"><span class="result-label">日期</span><span class="result-value">${matchData[1]}</span></div>
+                    <div class="result-item"><span class="result-label">ID</span><span class="result-value">${matchData[2]}</span></div>
+                    <div class="result-item"><span class="result-label">注册人数</span><span class="result-value">${matchData[3]}</span></div>
+                    <div class="result-item"><span class="result-label">首充人数</span><span class="result-value">${matchData[4]}</span></div>
+                    <div class="result-item"><span class="result-label">充值金额</span><span class="result-value" style="color:#eab308;">¥ ${matchData[5]}</span></div>
+                    <div class="result-item"><span class="result-label">提现金额</span><span class="result-value" style="color:#ef4444;">¥ ${matchData[6]}</span></div>
                 `;
             } else {
-                resBox.innerHTML = '<div class="status-msg">Aguarde, dados em sincronização.</div>';
+                resBox.innerHTML = '<div class="status-msg">请等待，数据同步中。</div>';
             }
 
         } catch (error) {
-            resBox.innerHTML = '<div class="status-msg">Erro de rede. Por favor, atualize a página e tente novamente.</div>';
+            resBox.innerHTML = '<div class="status-msg">网络错误或表格链接失效，请刷新重试。</div>';
         }
     }
 </script>
