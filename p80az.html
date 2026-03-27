@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>数据查询系统</title>
+    <style>
+        /* 基础重置与背景 */
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; 
+            background-color: #f4f7f6; 
+            margin: 0; 
+            padding: 20px 15px; 
+            display: flex; 
+            justify-content: center; 
+            align-items: flex-start;
+            min-height: 100vh;
+        }
+        
+        /* 核心卡片容器：手机端全宽，电脑端居中限制宽度 */
+        .mobile-container { 
+            background: #ffffff; 
+            width: 100%; 
+            max-width: 420px; /* 电脑端最大宽度 */
+            border-radius: 16px; 
+            box-shadow: 0 8px 24px rgba(0,0,0,0.06); 
+            padding: 30px 20px; 
+            box-sizing: border-box; 
+        }
+
+        /* 品牌 Logo 区域 */
+        .logo-container { 
+            text-align: center; 
+            margin-bottom: 25px; 
+        }
+        .logo-container img { 
+            max-width: 180px; /* 限制Logo最大宽度 */
+            height: auto; 
+            border-radius: 8px; /* 如果logo是方形的，加点圆角会更好看 */
+        }
+
+        h2 { 
+            text-align: center; 
+            color: #2c3e50; 
+            font-size: 22px; 
+            margin-top: 0; 
+            margin-bottom: 25px; 
+            font-weight: 600;
+        }
+
+        /* 表单控件样式 */
+        .form-group { margin-bottom: 18px; }
+        label { 
+            display: block; 
+            font-size: 14px; 
+            color: #555; 
+            margin-bottom: 8px; 
+            font-weight: 500;
+        }
+        input, select { 
+            width: 100%; 
+            padding: 14px 12px; 
+            border: 1px solid #e2e8f0; 
+            border-radius: 8px; 
+            box-sizing: border-box; 
+            font-size: 16px; /* 16px 防止 iOS 自动放大屏幕 */
+            background-color: #f8fafc;
+            color: #333;
+            transition: border-color 0.2s;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: #3b82f6;
+            background-color: #fff;
+        }
+
+        /* 按钮样式 */
+        button { 
+            width: 100%; 
+            padding: 15px; 
+            background: #3b82f6; 
+            color: white; 
+            border: none; 
+            border-radius: 8px; 
+            font-size: 16px; 
+            font-weight: bold; 
+            cursor: pointer; 
+            margin-top: 10px; 
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+            transition: background 0.2s;
+        }
+        button:active { background: #2563eb; transform: translateY(1px); }
+
+        /* 结果展示区 */
+        #resultBox { 
+            margin-top: 25px; 
+            padding: 20px; 
+            border-radius: 12px; 
+            background: #f8fafc; 
+            border: 1px solid #e2e8f0; 
+            display: none; 
+            font-size: 15px; 
+            animation: fadeIn 0.3s ease;
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* 结果列表的排版 */
+        .result-item { 
+            display: flex; 
+            justify-content: space-between; 
+            padding: 10px 0; 
+            border-bottom: 1px dashed #cbd5e1; 
+        }
+        .result-item:last-child { border-bottom: none; padding-bottom: 0; }
+        .result-label { color: #64748b; }
+        .result-value { font-weight: 600; color: #0f172a; }
+        
+        .status-msg { text-align: center; font-weight: bold; color: #ef4444; padding: 10px 0; }
+        .loading-msg { text-align: center; color: #64748b; padding: 10px 0; }
+        .success-title { text-align: center; margin-bottom: 15px; font-weight: bold; color: #10b981; font-size: 18px;}
+    </style>
+</head>
+<body>
+
+<div class="mobile-container">
+    <div class="logo-container">
+        <img src="https://via.placeholder.com/300x100?text=Your+Brand+Logo" alt="品牌Logo" id="brandLogo">
+    </div>
+
+    <h2>内部数据查询</h2>
+
+    <div class="form-group">
+        <label>查询日期 (必选)</label>
+        <input type="date" id="queryDate">
+    </div>
+
+    <div class="form-group">
+        <label>选择查询方式</label>
+        <select id="queryType">
+            <option value="channel">按 渠道号 查询</option>
+            <option value="id">按 账户 ID 查询</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label>输入查询值</label>
+        <input type="text" id="queryValue" placeholder="请输入渠道号或ID">
+    </div>
+
+    <button onclick="fetchAndSearch()">立 即 查 询</button>
+
+    <div id="resultBox"></div>
+</div>
+
+<script>
+    // 你的谷歌CSV链接已经过了Base64混淆编码处理，避免直接在源码暴露原始链接
+    const _dbUrl = "aHR0cHM6Ly9kb2NzLmdvb2dsZS5jb20vc3ByZWFkc2hlZXRzL2QvZS8yUEFDWC0xdlRJcWc5Wm9sTHVXUGZSVWl3TkFLS0VsbENFc0pzZ0g5ZlZZSzRLTEdINGVIZkhxbWM0d1pjSDdEc2I4Ym11RzQ3a2lodUZ1Mm5YNi0tYi9wdWI/b3V0cHV0PWNzdg==";
+
+    // 格式化日期，确保网页选的日期和谷歌表格里的日期格式对得上
+    function normalizeDateStr(dateStr) {
+        if(!dateStr) return "";
+        let d = new Date(dateStr);
+        if(isNaN(d)) return dateStr.trim();
+        let yyyy = d.getFullYear();
+        let mm = String(d.getMonth() + 1).padStart(2, '0');
+        let dd = String(d.getDate()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}`;
+    }
+
+    async function fetchAndSearch() {
+        const inputDate = document.getElementById('queryDate').value;
+        const queryType = document.getElementById('queryType').value;
+        const queryValue = document.getElementById('queryValue').value.trim();
+        const resBox = document.getElementById('resultBox');
+
+        // 表单校验
+        if (!inputDate) { alert("请先选择查询日期！"); return; }
+        if (!queryValue) { alert("请输入查询内容！"); return; }
+
+        // 显示加载状态
+        resBox.style.display = 'block';
+        resBox.innerHTML = '<div class="loading-msg">正在努力查询中，请稍候...</div>';
+
+        try {
+            // 获取数据
+            const response = await fetch(atob(_dbUrl));
+            const csvText = await response.text();
+            
+            // 解析 CSV，按行分割，再按逗号分割
+            const rows = csvText.split('\n').map(row => row.split(',').map(cell => cell.trim()));
+            
+            let matchData = null;
+            const targetDate = normalizeDateStr(inputDate);
+
+            // 遍历查找 (跳过第一行表头)
+            // 表头顺序: 0:渠道号, 1:日期, 2:ID, 3:注册人数, 4:首充人数, 5:充值金额, 6:提现金额
+            for (let i = 1; i < rows.length; i++) {
+                const row = rows[i];
+                if (row.length < 7) continue; // 跳过不完整的空行
+
+                const sheetDate = normalizeDateStr(row[1]);
+
+                // 首先匹配日期
+                if (sheetDate === targetDate) {
+                    // 然后匹配类型
+                    if (queryType === 'channel' && row[0] === queryValue) {
+                        matchData = row; break;
+                    } else if (queryType === 'id' && row[2] === queryValue) {
+                        matchData = row; break;
+                    }
+                }
+            }
+
+            // 渲染结果
+            if (matchData) {
+                resBox.innerHTML = `
+                    <div class="success-title">✓ 查询成功</div>
+                    <div class="result-item"><span class="result-label">渠道号</span><span class="result-value">${matchData[0]}</span></div>
+                    <div class="result-item"><span class="result-label">日期</span><span class="result-value">${matchData[1]}</span></div>
+                    <div class="result-item"><span class="result-label">ID</span><span class="result-value">${matchData[2]}</span></div>
+                    <div class="result-item"><span class="result-label">注册人数</span><span class="result-value">${matchData[3]}</span></div>
+                    <div class="result-item"><span class="result-label">首充人数</span><span class="result-value">${matchData[4]}</span></div>
+                    <div class="result-item"><span class="result-label">充值金额</span><span class="result-value" style="color:#eab308;">¥ ${matchData[5]}</span></div>
+                    <div class="result-item"><span class="result-label">提现金额</span><span class="result-value" style="color:#ef4444;">¥ ${matchData[6]}</span></div>
+                `;
+            } else {
+                resBox.innerHTML = '<div class="status-msg">请等待，数据同步中。</div>';
+            }
+
+        } catch (error) {
+            resBox.innerHTML = '<div class="status-msg">网络错误或表格链接失效，请刷新重试。</div>';
+        }
+    }
+</script>
+
+</body>
+</html>
