@@ -153,23 +153,28 @@
 </div>
 
 <script>
-    // 你的最新表格链接编码
     const _dbUrl = "aHR0cHM6Ly9kb2NzLmdvb2dsZS5jb20vc3ByZWFkc2hlZXRzL2QvZS8yUEFDWC0xdlE3bVh3cnhWVzV6aGlqS2h3VWhoaENLT0tScjBBYVBscHFUOEJzdVlycjV5RjBDdkdYVU1vMG53Tld3UjNwM1lMT2RLRVBTZ1d6RWR2ZkMvcHViP291dHB1dD1jc3Y=";
 
     async function fetchAndSearch() {
-        const inputDate = document.getElementById('queryDate').value;
+        const rawInputDate = document.getElementById('queryDate').value;
         const queryType = document.getElementById('queryType').value;
         const queryValue = document.getElementById('queryValue').value.trim();
         const resBox = document.getElementById('resultBox');
 
-        if (!inputDate) { alert("Por favor, selecione a data da consulta!"); return; }
+        if (!rawInputDate) { alert("Por favor, selecione a data da consulta!"); return; }
         if (!queryValue) { alert("Por favor, insira o valor da busca!"); return; }
+
+        // 统一格式化网页输入的日期，防止部分浏览器默认带斜杠
+        const inputDate = rawInputDate.replace(/\//g, '-').trim();
 
         resBox.style.display = 'block';
         resBox.innerHTML = '<div class="loading-msg">Consultando dados, por favor aguarde...</div>';
 
         try {
-            const response = await fetch(atob(_dbUrl));
+            // 【终极升级】缓存粉碎机：在链接末尾加一个随机时间戳，强迫浏览器每次必须去谷歌下载最新鲜的表格！
+            const freshUrl = atob(_dbUrl) + "&t=" + new Date().getTime();
+            
+            const response = await fetch(freshUrl);
             const csvText = await response.text();
             
             const rows = csvText.split('\n').map(row => {
@@ -182,20 +187,18 @@
                 const row = rows[i];
                 if (row.length < 7) continue; 
 
-                // 【核心升级点】智能兼容巴西日期 (DD/MM/YYYY) 和 国际日期 (YYYY-MM-DD)
+                // 智能日期格式兼容 (支持 2026-03-27 和 27/03/2026)
                 let sheetDate = row[1].replace(/\//g, '-').trim(); 
                 let dateParts = sheetDate.split('-');
-                
-                if (dateParts.length === 3) {
+                if(dateParts.length === 3) {
                     if (dateParts[0].length === 4) {
-                        // 如果表格里是 YYYY-MM-DD 格式
                         sheetDate = `${dateParts[0]}-${dateParts[1].padStart(2, '0')}-${dateParts[2].padStart(2, '0')}`;
                     } else if (dateParts[2].length === 4) {
-                        // 如果表格里是 DD-MM-YYYY (巴西格式)，自动翻转成年-月-日来进行匹配
                         sheetDate = `${dateParts[2]}-${dateParts[1].padStart(2, '0')}-${dateParts[0].padStart(2, '0')}`;
                     }
                 }
 
+                // 核心匹配逻辑
                 if (sheetDate === inputDate) {
                     if (queryType === 'channel' && row[0] === queryValue) {
                         matchData = row; break;
