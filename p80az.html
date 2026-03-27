@@ -153,19 +153,7 @@
 </div>
 
 <script>
-    // 你的谷歌CSV链接已经过了Base64混淆编码处理，避免直接在源码暴露原始链接
     const _dbUrl = "aHR0cHM6Ly9kb2NzLmdvb2dsZS5jb20vc3ByZWFkc2hlZXRzL2QvZS8yUEFDWC0xdlRJcWc5Wm9sTHVXUGZSVWl3TkFLS0VsbENFc0pzZ0g5ZlZZSzRLTEdINGVIZkhxbWM0d1pjSDdEc2I4Ym11RzQ3a2lodUZ1Mm5YNi0tYi9wdWI/b3V0cHV0PWNzdg==";
-
-    // 格式化日期，确保网页选的日期和谷歌表格里的日期格式对得上
-    function normalizeDateStr(dateStr) {
-        if(!dateStr) return "";
-        let d = new Date(dateStr);
-        if(isNaN(d)) return dateStr.trim();
-        let yyyy = d.getFullYear();
-        let mm = String(d.getMonth() + 1).padStart(2, '0');
-        let dd = String(d.getDate()).padStart(2, '0');
-        return `${yyyy}-${mm}-${dd}`;
-    }
 
     async function fetchAndSearch() {
         const inputDate = document.getElementById('queryDate').value;
@@ -173,36 +161,37 @@
         const queryValue = document.getElementById('queryValue').value.trim();
         const resBox = document.getElementById('resultBox');
 
-        // 表单校验
         if (!inputDate) { alert("请先选择查询日期！"); return; }
         if (!queryValue) { alert("请输入查询内容！"); return; }
 
-        // 显示加载状态
         resBox.style.display = 'block';
         resBox.innerHTML = '<div class="loading-msg">正在努力查询中，请稍候...</div>';
 
         try {
-            // 获取数据
             const response = await fetch(atob(_dbUrl));
             const csvText = await response.text();
             
-            // 解析 CSV，按行分割，再按逗号分割
-            const rows = csvText.split('\n').map(row => row.split(',').map(cell => cell.trim()));
+            // 【升级点1】使用强大的正则解析：即使充值金额里写了 "1,000" 也不会把表格切乱
+            const rows = csvText.split('\n').map(row => {
+                return row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(cell => cell.replace(/^"|"$/g, '').trim());
+            });
             
             let matchData = null;
-            const targetDate = normalizeDateStr(inputDate);
 
-            // 遍历查找 (跳过第一行表头)
-            // 表头顺序: 0:渠道号, 1:日期, 2:ID, 3:注册人数, 4:首充人数, 5:充值金额, 6:提现金额
+            // 遍历每一行数据
             for (let i = 1; i < rows.length; i++) {
                 const row = rows[i];
-                if (row.length < 7) continue; // 跳过不完整的空行
+                if (row.length < 7) continue; // 如果是空行则跳过
 
-                const sheetDate = normalizeDateStr(row[1]);
+                // 【升级点2】超级日期容错：不管表格里填 2024/5/20 还是 2024-5-20，都强制转换成 2024-05-20 来对比
+                let sheetDate = row[1].replace(/\//g, '-'); 
+                let dateParts = sheetDate.split('-');
+                if(dateParts.length === 3) {
+                    sheetDate = `${dateParts[0]}-${dateParts[1].padStart(2, '0')}-${dateParts[2].padStart(2, '0')}`;
+                }
 
-                // 首先匹配日期
-                if (sheetDate === targetDate) {
-                    // 然后匹配类型
+                // 核心匹配逻辑：日期必须对上，然后再对渠道号或ID
+                if (sheetDate === inputDate) {
                     if (queryType === 'channel' && row[0] === queryValue) {
                         matchData = row; break;
                     } else if (queryType === 'id' && row[2] === queryValue) {
@@ -211,7 +200,6 @@
                 }
             }
 
-            // 渲染结果
             if (matchData) {
                 resBox.innerHTML = `
                     <div class="success-title">✓ 查询成功</div>
