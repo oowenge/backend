@@ -153,6 +153,7 @@
 </div>
 
 <script>
+    // 你的最新表格链接编码
     const _dbUrl = "aHR0cHM6Ly9kb2NzLmdvb2dsZS5jb20vc3ByZWFkc2hlZXRzL2QvZS8yUEFDWC0xdlE3bVh3cnhWVzV6aGlqS2h3VWhoaENLT0tScjBBYVBscHFUOEJzdVlycjV5RjBDdkdYVU1vMG53Tld3UjNwM1lMT2RLRVBTZ1d6RWR2ZkMvcHViP291dHB1dD1jc3Y=";
 
     async function fetchAndSearch() {
@@ -181,10 +182,18 @@
                 const row = rows[i];
                 if (row.length < 7) continue; 
 
-                let sheetDate = row[1].replace(/\//g, '-'); 
+                // 【核心升级点】智能兼容巴西日期 (DD/MM/YYYY) 和 国际日期 (YYYY-MM-DD)
+                let sheetDate = row[1].replace(/\//g, '-').trim(); 
                 let dateParts = sheetDate.split('-');
-                if(dateParts.length === 3) {
-                    sheetDate = `${dateParts[0]}-${dateParts[1].padStart(2, '0')}-${dateParts[2].padStart(2, '0')}`;
+                
+                if (dateParts.length === 3) {
+                    if (dateParts[0].length === 4) {
+                        // 如果表格里是 YYYY-MM-DD 格式
+                        sheetDate = `${dateParts[0]}-${dateParts[1].padStart(2, '0')}-${dateParts[2].padStart(2, '0')}`;
+                    } else if (dateParts[2].length === 4) {
+                        // 如果表格里是 DD-MM-YYYY (巴西格式)，自动翻转成年-月-日来进行匹配
+                        sheetDate = `${dateParts[2]}-${dateParts[1].padStart(2, '0')}-${dateParts[0].padStart(2, '0')}`;
+                    }
                 }
 
                 if (sheetDate === inputDate) {
