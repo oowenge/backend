@@ -153,23 +153,30 @@
 </div>
 
 <script>
-    const _dbUrl = "aHR0cHM6Ly9kb2NzLmdvb2dsZS5jb20vc3ByZWFkc2hlZXRzL2QvZS8yUEFDWC0xdlRJcWc5Wm9sTHVXUGZSVWl3TkFLS0VsbENFc0pzZ0g5ZlZZSzRLTEdINGVIZkhxbWM0d1pjSDdEc2I4Ym11RzQ3a2lodUZ1Mm5YNi0tYi9wdWI/b3V0cHV0PWNzdg==";
+    // 你的明文表格链接
+    const _dbUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTIqg9ZolLuWPfRUiwNAKKEllCEsJsgH9fVYK4KLGH4eHfHqmc4wZcH7Dsb8bmuG47kihuFu2nX6--b/pub?output=csv";
 
     async function fetchAndSearch() {
-        const inputDate = document.getElementById('queryDate').value;
+        const rawInputDate = document.getElementById('queryDate').value;
         const queryType = document.getElementById('queryType').value;
         const queryValue = document.getElementById('queryValue').value.trim();
         const resBox = document.getElementById('resultBox');
 
-        if (!inputDate) { alert("Por favor, selecione a data da consulta!"); return; }
+        if (!rawInputDate) { alert("Por favor, selecione a data da consulta!"); return; }
         if (!queryValue) { alert("Por favor, insira o valor da busca!"); return; }
+
+        const inputDate = rawInputDate.replace(/\//g, '-').trim();
 
         resBox.style.display = 'block';
         resBox.innerHTML = '<div class="loading-msg">Consultando dados, por favor aguarde...</div>';
 
         try {
-            const response = await fetch(atob(_dbUrl));
-            const csvText = await response.text();
+            // 每次请求加上随机时间戳，强制浏览器不缓存
+            const freshUrl = _dbUrl + "&t=" + new Date().getTime();
+            
+            const response = await fetch(freshUrl);
+            // 【核心修复】获取文本后，第一件事就是用 .replace(/\r/g, '') 杀掉所有隐藏的回车符！
+            const csvText = (await response.text()).replace(/\r/g, '');
             
             const rows = csvText.split('\n').map(row => {
                 return row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(cell => cell.replace(/^"|"$/g, '').trim());
@@ -181,10 +188,15 @@
                 const row = rows[i];
                 if (row.length < 7) continue; 
 
-                let sheetDate = row[1].replace(/\//g, '-'); 
+                // 智能日期处理
+                let sheetDate = row[1].replace(/\//g, '-').trim(); 
                 let dateParts = sheetDate.split('-');
                 if(dateParts.length === 3) {
-                    sheetDate = `${dateParts[0]}-${dateParts[1].padStart(2, '0')}-${dateParts[2].padStart(2, '0')}`;
+                    if (dateParts[0].length === 4) {
+                        sheetDate = `${dateParts[0]}-${dateParts[1].padStart(2, '0')}-${dateParts[2].padStart(2, '0')}`;
+                    } else if (dateParts[2].length === 4) {
+                        sheetDate = `${dateParts[2]}-${dateParts[1].padStart(2, '0')}-${dateParts[0].padStart(2, '0')}`;
+                    }
                 }
 
                 if (sheetDate === inputDate) {
